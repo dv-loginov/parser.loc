@@ -1,12 +1,14 @@
 <?php
-//DB Credentials
+
 ini_set("memory_limit", "512M");
 
-
-define('DB_HOST', '127.0.0.1:3306');//'parser.loc');
+//DB Credentials
+define('DB_HOST', '127.0.0.1:3306');
 define('DB_USER','mysql');
 define('DB_PASSWORD','mysql');
 define('DB_NAME','testparser');
+//row per block
+define('PER_BLOCK','10');
 
 
 //Lib for parsing
@@ -30,26 +32,30 @@ if(isset($argv[1])){
 if ($action=='catalog'){
     getArticlesLinksFromCatalog($url);
 }elseif ($action=='articles'){
-    while($article=$db->query('select url from articles where data_parsed is null limit 1')){
-        //echo $article[0]['url'];
-        getArticleData($article['url']);
-        //getArticleData($article[0]['url']);
+    while(true){
+        //get random hash
+        $tmp_uniq=md5(uniqid().time());
+        $db->query("update articles set tmp_uniq='{$tmp_uniq}' where tmp_uniq is null limit ".PER_BLOCK);
+        //get marked articles
+        $articles=$db->query("select url from articles where tmp_uniq='{$tmp_uniq}'");
+        if(!$articles){
+            echo "All done.";
+            exit;
+        }
+        //Process each of marked articles
+        foreach ($articles as $article) {
+            getArticleData($article['url']);
+        }
     }
 }
 
 
 function getArticleData($url){
-
     global $db;
-
     $article=file_get_html($url);
-
     $h1=$db->escape($article->find('h1',0)->innertext);
-
     $content=$db->escape($article->find('article',0)->innertext);
-
     $data=compact('h1','content');
-
     $sql="
         update articles
             set h1='{$h1}',
@@ -57,7 +63,6 @@ function getArticleData($url){
                 data_parsed =NOW()
             where url='{$url}'
         ";
-
     $db->query($sql);
     return $data;
 }
@@ -68,9 +73,7 @@ function getArticleData($url){
 function getArticlesLinksFromCatalog($url)
 {
     global $db;
-
     echo PHP_EOL.$url.PHP_EOL.PHP_EOL;
-
     //Get page
     $html=file_get_html($url);
     //Get each article link
@@ -84,12 +87,7 @@ function getArticlesLinksFromCatalog($url)
         ";
         $db->query($sql);
 
-
-//
-//        //Parse and save cerrent article by current link
-//        getArticleData($link_to_article->href);
-
-        echo $link_to_article->href . PHP_EOL;
+        //echo $link_to_article->href . PHP_EOL;
 
         //print_r(getArticleData($link_to_article->href));
     }

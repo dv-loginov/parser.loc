@@ -21,8 +21,7 @@ class DB{
         }
 
         $result=$this->connection->query($sql);
-
-
+//
         if(mysqli_error($this->connection))
         {
             throw new Exception(mysqli_error($this->connection));
@@ -31,8 +30,7 @@ class DB{
         if(is_bool($result)){
             return $result;
         }
-
-        return $result->fetch_array(MYSQLI_ASSOC);
+        return $result->fetch_all(MYSQLI_ASSOC);
     }
 
     public function escape($str){
